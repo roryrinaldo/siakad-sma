@@ -7,6 +7,7 @@
         <p class="text-sm text-slate-500">{{ $reportCard->schoolClass->name }} - {{ $reportCard->academicYear->year }} {{ $reportCard->semester->name }}</p>
     </div>
     <div class="flex gap-2">
+        <a href="{{ route('report-cards.pdf', $reportCard) }}" class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white">PDF</a>
         @if (! $reportCard->is_validated && auth()->user()->hasAnyRole(['Admin', 'Wali Kelas']))
             <form method="POST" action="{{ route('report-cards.validate', $reportCard) }}">
                 @csrf

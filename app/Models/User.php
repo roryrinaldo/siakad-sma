@@ -36,6 +36,29 @@ class User extends Authenticatable
             ->withTimestamps();
     }
 
+    public function getRoleNamesTextAttribute(): string
+    {
+        return $this->roles->pluck('name')->join(', ') ?: '-';
+    }
+
+    public function getLinkedProfileTextAttribute(): string
+    {
+        if ($this->student) {
+            return 'Siswa: '.$this->student->name;
+        }
+
+        if ($this->teacher) {
+            return 'Guru: '.$this->teacher->name;
+        }
+
+        return '-';
+    }
+
+    public function getChildrenNamesTextAttribute(): string
+    {
+        return $this->children->pluck('name')->join(', ') ?: '-';
+    }
+
     /**
      * Get the attributes that should be cast.
      *

@@ -7,6 +7,7 @@ use App\Models\SchoolClass;
 use App\Models\Student;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\View\View;
 
 class StudentController extends Controller
@@ -44,6 +45,33 @@ class StudentController extends Controller
         Student::create($request->validated());
 
         return redirect()->route('students.index')->with('status', 'Siswa berhasil ditambahkan.');
+    }
+
+    public function importCreate(): View
+    {
+        return view('resources.import', [
+            'title' => 'Import Data Siswa',
+            'route' => 'students.import.store',
+            'backRoute' => 'students.index',
+            'headers' => ['nis', 'nisn', 'name', 'gender', 'school_class_id', 'status', 'entry_year', 'email', 'phone'],
+            'notes' => [
+                'gender gunakan L atau P.',
+                'school_class_id isi dengan ID kelas dari menu Kelas.',
+                'status gunakan aktif, lulus, pindah, atau keluar.',
+            ],
+        ]);
+    }
+
+    public function importStore(Request $request): RedirectResponse
+    {
+        $request->validate(['file' => ['required', 'file', 'mimes:csv,txt']]);
+
+        [$imported, $skipped, $errors] = $this->importCsv($request->file('file')->getRealPath());
+
+        return redirect()->route('students.index')->with(
+            'status',
+            "Import siswa selesai: {$imported} berhasil, {$skipped} dilewati".($errors ? ' ('.implode('; ', array_slice($errors, 0, 3)).')' : '.')
+        );
     }
 
     public function show(Student $student): View
@@ -109,5 +137,68 @@ class StudentController extends Controller
                 ['name' => 'status', 'label' => 'Status', 'type' => 'select', 'options' => collect(['aktif' => 'Aktif', 'lulus' => 'Lulus', 'pindah' => 'Pindah', 'keluar' => 'Keluar'])],
             ],
         ];
+    }
+
+    private function importCsv(string $path): array
+    {
+        $handle = fopen($path, 'r');
+        if (! $handle) {
+            return [0, 0, ['File tidak dapat dibaca.']];
+        }
+
+        $headers = fgetcsv($handle) ?: [];
+        $headers = array_map(fn ($header) => trim(strtolower((string) $header)), $headers);
+        $imported = 0;
+        $skipped = 0;
+        $errors = [];
+
+        while (($row = fgetcsv($handle)) !== false) {
+            $data = array_combine($headers, array_pad($row, count($headers), null));
+            if (! $data || blank($data['nis'] ?? null)) {
+                $skipped++;
+                continue;
+            }
+
+            $payload = [
+                'school_class_id' => ($data['school_class_id'] ?? null) ?: null,
+                'nis' => $data['nis'] ?? null,
+                'nisn' => ($data['nisn'] ?? null) ?: null,
+                'name' => $data['name'] ?? null,
+                'gender' => strtoupper($data['gender'] ?? 'L'),
+                'birth_place' => $data['birth_place'] ?? null,
+                'birth_date' => ($data['birth_date'] ?? null) ?: null,
+                'religion' => $data['religion'] ?? null,
+                'address' => $data['address'] ?? null,
+                'phone' => $data['phone'] ?? null,
+                'email' => ($data['email'] ?? null) ?: null,
+                'entry_year' => ($data['entry_year'] ?? null) ?: null,
+                'status' => ($data['status'] ?? null) ?: 'aktif',
+            ];
+
+            $validator = Validator::make($payload, [
+                'school_class_id' => ['nullable', 'exists:school_classes,id'],
+                'nis' => ['required', 'string', 'max:50'],
+                'nisn' => ['nullable', 'string', 'max:50'],
+                'name' => ['required', 'string', 'max:255'],
+                'gender' => ['required', 'in:L,P'],
+                'birth_date' => ['nullable', 'date'],
+                'email' => ['nullable', 'email', 'max:255'],
+                'entry_year' => ['nullable', 'integer', 'between:2000,2100'],
+                'status' => ['required', 'in:aktif,lulus,pindah,keluar'],
+            ]);
+
+            if ($validator->fails()) {
+                $skipped++;
+                $errors[] = 'NIS '.($payload['nis'] ?: '-').': '.$validator->errors()->first();
+                continue;
+            }
+
+            Student::updateOrCreate(['nis' => $payload['nis']], $payload);
+            $imported++;
+        }
+
+        fclose($handle);
+
+        return [$imported, $skipped, $errors];
     }
 }

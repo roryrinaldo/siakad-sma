@@ -2,16 +2,41 @@
 
 @section('content')
 @php
-    $canCreate = Route::has($route.'.create') && auth()->user()->hasAnyRole(['Admin', 'Guru', 'Wali Kelas']);
+    $canCreate = Route::has($route.'.create') && match ($route) {
+        'students', 'teachers', 'school-classes', 'subjects', 'academic-years', 'semesters', 'schedules', 'users' => auth()->user()->hasRole('Admin'),
+        'attendances', 'grades', 'announcements' => auth()->user()->hasAnyRole(['Admin', 'Guru']),
+        'report-cards' => auth()->user()->hasAnyRole(['Admin', 'Wali Kelas']),
+        default => false,
+    };
+    $canModify = fn () => match ($route) {
+        'students', 'teachers', 'school-classes', 'subjects', 'academic-years', 'semesters', 'schedules', 'users' => auth()->user()->hasRole('Admin'),
+        'attendances', 'grades', 'announcements' => auth()->user()->hasAnyRole(['Admin', 'Guru']),
+        'report-cards' => auth()->user()->hasAnyRole(['Admin', 'Wali Kelas']),
+        default => false,
+    };
 @endphp
 <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
     <div>
         <h1 class="text-2xl font-semibold">{{ $title }}</h1>
         <p class="text-sm text-slate-500">Kelola dan pantau data {{ strtolower($title) }}.</p>
     </div>
-    @if ($canCreate)
-        <a href="{{ route($route.'.create') }}" class="inline-flex items-center justify-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Tambah</a>
-    @endif
+    <div class="flex flex-wrap gap-2">
+        @if (in_array($route, ['students', 'teachers'], true) && Route::has($route.'.import.create') && auth()->user()->hasRole('Admin'))
+            <a href="{{ route($route.'.import.create') }}" class="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100">Import CSV</a>
+        @endif
+        @if ($route === 'attendances' && Route::has('attendances.bulk.create') && auth()->user()->hasAnyRole(['Admin', 'Guru']))
+            <a href="{{ route('attendances.bulk.create') }}" class="inline-flex items-center justify-center rounded-md border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100">Input Massal</a>
+        @endif
+        @if ($route === 'grades' && Route::has('grades.bulk.create') && auth()->user()->hasAnyRole(['Admin', 'Guru']))
+            <a href="{{ route('grades.bulk.create') }}" class="inline-flex items-center justify-center rounded-md border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100">Input Massal</a>
+        @endif
+        @if ($route === 'report-cards' && Route::has('report-cards.generate.create') && auth()->user()->hasAnyRole(['Admin', 'Wali Kelas']))
+            <a href="{{ route('report-cards.generate.create') }}" class="inline-flex items-center justify-center rounded-md border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100">Generate Massal</a>
+        @endif
+        @if ($canCreate)
+            <a href="{{ route($route.'.create') }}" class="inline-flex items-center justify-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Tambah</a>
+        @endif
+    </div>
 </div>
 
 @if (! empty($filters))
@@ -75,10 +100,10 @@
                             @if (Route::has($route.'.show'))
                                 <a href="{{ route($route.'.show', $item) }}" class="rounded-md border border-slate-300 px-2 py-1 text-xs font-medium hover:bg-slate-100">Detail</a>
                             @endif
-                            @if (Route::has($route.'.edit') && auth()->user()->hasAnyRole(['Admin', 'Guru', 'Wali Kelas']))
+                            @if (Route::has($route.'.edit') && $canModify())
                                 <a href="{{ route($route.'.edit', $item) }}" class="rounded-md border border-slate-300 px-2 py-1 text-xs font-medium hover:bg-slate-100">Edit</a>
                             @endif
-                            @if (Route::has($route.'.destroy') && auth()->user()->hasAnyRole(['Admin', 'Guru', 'Wali Kelas']))
+                            @if (Route::has($route.'.destroy') && $canModify())
                                 <form method="POST" action="{{ route($route.'.destroy', $item) }}" onsubmit="return confirm('Hapus data ini?')">
                                     @csrf
                                     @method('DELETE')

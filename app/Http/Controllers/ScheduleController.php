@@ -21,6 +21,7 @@ class ScheduleController extends Controller
             ->when($request->user()->hasRole('Siswa'), fn ($query) => $query->where('school_class_id', $request->user()->student?->school_class_id ?? 0))
             ->when($request->user()->hasRole('Orang Tua'), fn ($query) => $query->whereIn('school_class_id', $request->user()->children()->pluck('school_class_id')))
             ->when($request->user()->hasRole('Guru') && ! $request->user()->hasAnyRole(['Admin', 'Kepala Sekolah', 'Wali Kelas']), fn ($query) => $query->where('teacher_id', $request->user()->teacher?->id ?? 0))
+            ->when($request->user()->hasRole('Wali Kelas') && ! $request->user()->hasRole('Admin'), fn ($query) => $query->whereHas('schoolClass', fn ($q) => $q->where('homeroom_teacher_id', $request->user()->teacher?->id ?? 0)))
             ->orderBy('day')
             ->orderBy('starts_at')
             ->paginate(10);

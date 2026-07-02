@@ -33,8 +33,16 @@
                 }
                 $selectedValues = collect(old($name, []));
                 if ($type === 'multi_select' && $selectedValues->isEmpty()) {
-                    $relation = $name === 'subject_ids' ? 'subjects' : ($name === 'teacher_ids' ? 'teachers' : null);
-                    $selectedValues = $relation && $item->relationLoaded($relation) ? $item->{$relation}->pluck('id') : collect();
+                    $relation = match ($name) {
+                        'subject_ids' => 'subjects',
+                        'teacher_ids' => 'teachers',
+                        'role_names' => 'roles',
+                        'child_ids' => 'children',
+                        default => null,
+                    };
+                    $selectedValues = $relation && $item->relationLoaded($relation)
+                        ? ($name === 'role_names' ? $item->{$relation}->pluck('name') : $item->{$relation}->pluck('id'))
+                        : collect();
                 }
             @endphp
             <label class="{{ $type === 'textarea' ? 'md:col-span-2' : '' }} block">

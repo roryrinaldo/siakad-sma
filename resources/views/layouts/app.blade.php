@@ -12,17 +12,19 @@
         $user = auth()->user();
         $menus = [
             ['label' => 'Dashboard', 'route' => 'dashboard', 'roles' => ['Admin','Kepala Sekolah','Guru','Wali Kelas','Siswa','Orang Tua']],
+            ['label' => 'User & Role', 'route' => 'users.index', 'roles' => ['Admin']],
             ['label' => 'Siswa', 'route' => 'students.index', 'roles' => ['Admin']],
             ['label' => 'Guru', 'route' => 'teachers.index', 'roles' => ['Admin']],
             ['label' => 'Kelas', 'route' => 'school-classes.index', 'roles' => ['Admin']],
             ['label' => 'Mata Pelajaran', 'route' => 'subjects.index', 'roles' => ['Admin']],
             ['label' => 'Tahun Ajaran', 'route' => 'academic-years.index', 'roles' => ['Admin']],
             ['label' => 'Semester', 'route' => 'semesters.index', 'roles' => ['Admin']],
-            ['label' => 'Jadwal', 'route' => 'schedules.index', 'roles' => ['Admin','Kepala Sekolah','Guru','Wali Kelas','Siswa','Orang Tua']],
-            ['label' => 'Absensi', 'route' => 'attendances.index', 'roles' => ['Admin','Kepala Sekolah','Guru','Wali Kelas','Siswa','Orang Tua']],
-            ['label' => 'Nilai', 'route' => 'grades.index', 'roles' => ['Admin','Kepala Sekolah','Guru','Wali Kelas','Siswa','Orang Tua']],
-            ['label' => 'Raport', 'route' => 'report-cards.index', 'roles' => ['Admin','Kepala Sekolah','Wali Kelas','Siswa','Orang Tua']],
-            ['label' => 'Pengumuman', 'route' => 'announcements.index', 'roles' => ['Admin','Kepala Sekolah','Guru','Wali Kelas','Siswa','Orang Tua']],
+            ['label' => 'Jadwal', 'route' => 'schedules.index', 'roles' => ['Admin','Guru','Wali Kelas','Siswa','Orang Tua']],
+            ['label' => 'Absensi', 'route' => 'attendances.index', 'roles' => ['Admin','Guru','Wali Kelas','Siswa','Orang Tua']],
+            ['label' => 'Nilai', 'route' => 'grades.index', 'roles' => ['Admin','Guru','Wali Kelas','Siswa','Orang Tua']],
+            ['label' => 'Raport', 'route' => 'report-cards.index', 'roles' => ['Admin','Wali Kelas','Siswa','Orang Tua']],
+            ['label' => 'Rekap Kelas', 'route' => 'class-recaps.index', 'roles' => ['Admin','Kepala Sekolah','Wali Kelas']],
+            ['label' => 'Pengumuman', 'route' => 'announcements.index', 'roles' => ['Admin','Guru','Wali Kelas','Siswa','Orang Tua']],
             ['label' => 'Laporan', 'route' => 'reports.index', 'roles' => ['Admin','Kepala Sekolah','Guru','Wali Kelas']],
         ];
     @endphp

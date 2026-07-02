@@ -7,6 +7,7 @@ use App\Models\Subject;
 use App\Models\Teacher;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\View\View;
 
 class TeacherController extends Controller
@@ -43,6 +44,33 @@ class TeacherController extends Controller
         $teacher->subjects()->sync($subjects);
 
         return redirect()->route('teachers.index')->with('status', 'Guru berhasil ditambahkan.');
+    }
+
+    public function importCreate(): View
+    {
+        return view('resources.import', [
+            'title' => 'Import Data Guru',
+            'route' => 'teachers.import.store',
+            'backRoute' => 'teachers.index',
+            'headers' => ['nip', 'nuptk', 'name', 'gender', 'email', 'phone', 'is_active'],
+            'notes' => [
+                'gender gunakan L atau P.',
+                'is_active gunakan 1 untuk aktif dan 0 untuk nonaktif.',
+                'Data dengan NIP yang sama akan diperbarui.',
+            ],
+        ]);
+    }
+
+    public function importStore(Request $request): RedirectResponse
+    {
+        $request->validate(['file' => ['required', 'file', 'mimes:csv,txt']]);
+
+        [$imported, $skipped, $errors] = $this->importCsv($request->file('file')->getRealPath());
+
+        return redirect()->route('teachers.index')->with(
+            'status',
+            "Import guru selesai: {$imported} berhasil, {$skipped} dilewati".($errors ? ' ('.implode('; ', array_slice($errors, 0, 3)).')' : '.')
+        );
     }
 
     public function show(Teacher $teacher): View
@@ -112,5 +140,67 @@ class TeacherController extends Controller
                 ['name' => 'subject_ids', 'label' => 'Mata Pelajaran', 'type' => 'multi_select', 'options' => Subject::orderBy('name')->pluck('name', 'id')],
             ],
         ];
+    }
+
+    private function importCsv(string $path): array
+    {
+        $handle = fopen($path, 'r');
+        if (! $handle) {
+            return [0, 0, ['File tidak dapat dibaca.']];
+        }
+
+        $headers = fgetcsv($handle) ?: [];
+        $headers = array_map(fn ($header) => trim(strtolower((string) $header)), $headers);
+        $imported = 0;
+        $skipped = 0;
+        $errors = [];
+
+        while (($row = fgetcsv($handle)) !== false) {
+            $data = array_combine($headers, array_pad($row, count($headers), null));
+            if (! $data || blank($data['name'] ?? null)) {
+                $skipped++;
+                continue;
+            }
+
+            $payload = [
+                'nip' => ($data['nip'] ?? null) ?: null,
+                'nuptk' => ($data['nuptk'] ?? null) ?: null,
+                'name' => $data['name'] ?? null,
+                'gender' => strtoupper($data['gender'] ?? 'L'),
+                'address' => $data['address'] ?? null,
+                'phone' => $data['phone'] ?? null,
+                'email' => ($data['email'] ?? null) ?: null,
+                'is_active' => filter_var($data['is_active'] ?? true, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? true,
+            ];
+
+            $validator = Validator::make($payload, [
+                'nip' => ['nullable', 'string', 'max:50'],
+                'nuptk' => ['nullable', 'string', 'max:50'],
+                'name' => ['required', 'string', 'max:255'],
+                'gender' => ['required', 'in:L,P'],
+                'email' => ['nullable', 'email', 'max:255'],
+                'is_active' => ['boolean'],
+            ]);
+
+            if ($validator->fails()) {
+                $skipped++;
+                $errors[] = 'Guru '.($payload['name'] ?: '-').': '.$validator->errors()->first();
+                continue;
+            }
+
+            $key = $payload['nip'] ? ['nip' => $payload['nip']] : ['email' => $payload['email']];
+            if (blank($key[array_key_first($key)])) {
+                $skipped++;
+                $errors[] = 'Guru '.($payload['name'] ?: '-').': NIP atau email wajib diisi.';
+                continue;
+            }
+
+            Teacher::updateOrCreate($key, $payload);
+            $imported++;
+        }
+
+        fclose($handle);
+
+        return [$imported, $skipped, $errors];
     }
 }
